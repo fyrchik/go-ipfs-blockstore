@@ -37,6 +37,10 @@ var ErrNotFound = errors.New("blockstore: block not found")
 // of abstraction which allows to add different caching strategies.
 type Blockstore interface {
 	DeleteBlock(*cid.Cid) error
+
+	// DeleteBlocks deletes a slice of blocks at the same time using
+	// batching capabilies of the underlying datastore whenever possible.
+	DeleteBlocks([]*cid.Cid) error
 	Has(*cid.Cid) (bool, error)
 	Get(*cid.Cid) (blocks.Block, error)
 
@@ -189,6 +193,22 @@ func (bs *blockstore) DeleteBlock(k *cid.Cid) error {
 		return ErrNotFound
 	}
 	return err
+}
+
+func (bs *blockstore) DeleteBlocks(ks []*cid.Cid) error {
+	t, err := bs.datastore.Batch()
+	if err != nil {
+		return err
+	}
+	for _, c := range ks {
+		k := dshelp.CidToDsKey(c)
+		err = t.Delete(k)
+		if err != nil {
+			return err
+		}
+	}
+
+	return t.Commit()
 }
 
 // AllKeysChan runs a query for keys from the blockstore.

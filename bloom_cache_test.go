@@ -8,6 +8,7 @@ import (
 	"time"
 
 	blocks "github.com/ipfs/go-block-format"
+	cid "github.com/ipfs/go-cid"
 	ds "github.com/ipfs/go-datastore"
 	dsq "github.com/ipfs/go-datastore/query"
 	syncds "github.com/ipfs/go-datastore/sync"
@@ -61,6 +62,44 @@ func TestPutManyAddsToBloom(t *testing.T) {
 	}
 	if has {
 		t.Fatal("not added block is reported to be in blockstore")
+	}
+}
+
+func TestDeleteBlocksDeleteFromBloom(t *testing.T) {
+	bs := NewBlockstore(syncds.MutexWrap(ds.NewMapDatastore()))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	cachedbs, err := testBloomCached(ctx, bs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	select {
+	case <-cachedbs.rebuildChan:
+	case <-ctx.Done():
+		t.Fatalf("Timeout wating for rebuild: %d", cachedbs.bloom.ElementsAdded())
+	}
+
+	block1 := blocks.NewBlock([]byte("foo"))
+	block2 := blocks.NewBlock([]byte("bar"))
+	cachedbs.PutMany([]blocks.Block{block1, block2})
+	cachedbs.DeleteBlocks([]*cid.Cid{block1.Cid()})
+	has, err := cachedbs.Has(block1.Cid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if has {
+		t.Fatal("deleted block is reported to be in blockstore")
+	}
+
+	has, err = cachedbs.Has(block2.Cid())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !has {
+		t.Fatal("not deleted block is reported missing")
 	}
 }
 

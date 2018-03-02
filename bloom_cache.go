@@ -105,6 +105,16 @@ func (b *bloomcache) DeleteBlock(k *cid.Cid) error {
 	return b.blockstore.DeleteBlock(k)
 }
 
+func (b *bloomcache) DeleteBlocks(ks []*cid.Cid) error {
+	for _, k := range ks {
+		if has, ok := b.hasCached(k); ok && !has {
+			return ErrNotFound
+		}
+	}
+
+	return b.blockstore.DeleteBlocks(ks)
+}
+
 // if ok == false has is inconclusive
 // if ok == true then has respons to question: is it contained
 func (b *bloomcache) hasCached(k *cid.Cid) (has bool, ok bool) {

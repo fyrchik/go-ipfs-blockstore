@@ -49,6 +49,22 @@ func (b *arccache) DeleteBlock(k *cid.Cid) error {
 	}
 }
 
+// if some key was in cache but not in blockstore
+// ALL keys will be removed from the cache
+func (b *arccache) DeleteBlocks(ks []*cid.Cid) error {
+	for _, k := range ks {
+		if has, ok := b.hasCached(k); ok && !has {
+			return ErrNotFound
+		}
+	}
+
+	for _, k := range ks {
+		b.arc.Remove(k)
+	}
+
+	return b.blockstore.DeleteBlocks(ks)
+}
+
 // if ok == false has is inconclusive
 // if ok == true then has respons to question: is it contained
 func (b *arccache) hasCached(k *cid.Cid) (has bool, ok bool) {

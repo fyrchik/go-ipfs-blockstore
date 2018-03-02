@@ -65,6 +65,26 @@ func TestRemoveCacheEntryOnDelete(t *testing.T) {
 	}
 }
 
+func TestRemoveCacheEntryOnManyDeletes(t *testing.T) {
+	arc, _, cd := createStores(t)
+
+	arc.Put(exampleBlock)
+
+	cd.Lock()
+	writeHitTheDatastore := false
+	cd.Unlock()
+
+	cd.SetFunc(func() {
+		writeHitTheDatastore = true
+	})
+
+	arc.DeleteBlocks([]*cid.Cid{exampleBlock.Cid()})
+	arc.Put(exampleBlock)
+	if !writeHitTheDatastore {
+		t.Fail()
+	}
+}
+
 func TestElideDuplicateWrite(t *testing.T) {
 	arc, _, cd := createStores(t)
 
